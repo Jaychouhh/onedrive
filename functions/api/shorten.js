@@ -39,6 +39,10 @@ export async function onRequestPost(context) {
     // 写入 KV（binding 名称需在 Pages 设置里配置为 SHORT_URLS）
     await env.SHORT_URLS.put(`short:${code}`, JSON.stringify(payload));
 
+    // 统计：短链创建次数 +1
+    const currentShortens = parseInt(await env.SHORT_URLS.get('stats:shortens') || '0');
+    await env.SHORT_URLS.put('stats:shortens', String(currentShortens + 1));
+
     // 构造短链地址
     const shortUrl = new URL(`/s/${code}`, request.url).toString();
 

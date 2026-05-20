@@ -697,6 +697,152 @@
     }
 
     .shortlink-tip a { color: var(--primary); }
+
+    /* ===== 统计面板 ===== */
+    .stats-card { margin-top: 1.5rem; }
+
+    .stats-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .stats-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      transition: transform 0.2s ease;
+    }
+
+    .stat-item:hover { transform: translateY(-2px); }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.2;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    .stats-panel {
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+
+    .stats-panel.open { display: block; }
+
+    /* ===== 管理员入口 ===== */
+    .admin-trigger {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      z-index: 1000;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      opacity: 0.5;
+      cursor: pointer;
+      padding: 0.4rem 0.7rem;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(8px);
+    }
+
+    .admin-trigger:hover { opacity: 1; color: var(--primary); }
+
+    /* ===== 密码弹窗 ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      width: 90%;
+      max-width: 360px;
+      box-shadow: var(--card-shadow);
+      animation: slideUp 0.3s ease;
+    }
+
+    .modal-box h3 {
+      margin: 0 0 1rem;
+      font-size: 1.1rem;
+      color: var(--text-main);
+    }
+
+    .modal-box input[type="password"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--input-bg);
+      border: 2px solid var(--input-border);
+      border-radius: 10px;
+      font-size: 1rem;
+      color: var(--text-main);
+      font-family: inherit;
+      margin-bottom: 1rem;
+      outline: none;
+    }
+
+    .modal-box input[type="password"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .modal-actions .btn { width: auto; flex: 1; }
+    .modal-actions .btn-secondary { flex: 1; justify-content: center; }
+
+    .modal-error {
+      color: var(--error);
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
   </style>
 </head>
 <body data-theme="glacier-clean">
@@ -790,6 +936,52 @@
         <li>解析成功后链接会自动复制到剪贴板</li>
         <li>必须填写文件备注后才能保存到历史记录</li>
       </ul>
+    </div>
+
+  </div>
+
+  <!-- 管理员入口 -->
+  <div class="admin-trigger" onclick="openAdminModal()" title="管理员入口">🔒 管理</div>
+
+  <!-- 密码弹窗 -->
+  <div class="modal-overlay" id="adminModal" onclick="if(event.target===this) closeAdminModal()">
+    <div class="modal-box">
+      <h3>🔐 管理员验证</h3>
+      <input type="password" id="adminPassword" placeholder="输入管理密码..." onkeydown="if(event.key==='Enter') verifyAdmin()" />
+      <div class="modal-actions">
+        <button class="btn" onclick="verifyAdmin()">进入</button>
+        <button class="btn-secondary" onclick="closeAdminModal()">取消</button>
+      </div>
+      <div class="modal-error" id="adminError">密码错误</div>
+    </div>
+  </div>
+
+  <!-- 统计面板（验证通过后插入到页面） -->
+  <div id="adminPanel" style="display:none;">
+    <div class="card stats-card">
+      <div class="stats-header">
+        <div class="stats-title">📊 使用统计</div>
+        <button class="btn-secondary" id="statsToggleBtn" onclick="toggleStats()">查看数据</button>
+      </div>
+      <div class="stats-panel" id="statsPanel">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-value" id="statParses">—</div>
+            <div class="stat-label">解析次数</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statShortens">—</div>
+            <div class="stat-label">生成短链</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="statVisits">—</div>
+            <div class="stat-label">短链访问</div>
+          </div>
+        </div>
+        <div class="input-hint" style="justify-content:center;">
+          <span>📈 数据来自服务器实时统计</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1040,6 +1232,13 @@
         // 自动复制
         copyText(result.url);
 
+        // 统计：解析次数 +1（不等待）
+        fetch('/api/stats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'parse' })
+        }).catch(() => {});
+
         let metaHtml = '';
         if (result.type === 'sharepoint') {
           metaHtml = `<div class="result-meta sharepoint">
@@ -1273,6 +1472,91 @@
       if (!term) return text;
       const re = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
       return text.replace(re, '<mark style="background:#fde047;padding:1px 3px;border-radius:3px;color:#713f12;">$1</mark>');
+    }
+
+    /* ===== 管理员面板 ===== */
+    let isAdmin = false;
+
+    function openAdminModal() {
+      document.getElementById('adminModal').classList.add('open');
+      document.getElementById('adminPassword').value = '';
+      document.getElementById('adminError').style.display = 'none';
+      setTimeout(() => document.getElementById('adminPassword').focus(), 100);
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').classList.remove('open');
+      document.getElementById('adminError').style.display = 'none';
+    }
+
+    async function verifyAdmin() {
+      const pwd = document.getElementById('adminPassword').value.trim();
+      if (!pwd) return;
+
+      try {
+        const resp = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+          isAdmin = true;
+          closeAdminModal();
+          // 把统计面板插入到页面（放在"使用说明"卡片后面）
+          const panel = document.getElementById('adminPanel');
+          const container = document.querySelector('.container');
+          container.appendChild(panel);
+          panel.style.display = 'block';
+          showToast('验证成功，已显示管理面板');
+          // 自动展开数据
+          toggleStats();
+        } else {
+          document.getElementById('adminError').style.display = 'block';
+          document.getElementById('adminPassword').value = '';
+          document.getElementById('adminPassword').focus();
+        }
+      } catch {
+        document.getElementById('adminError').textContent = '验证失败，请重试';
+        document.getElementById('adminError').style.display = 'block';
+      }
+    }
+
+    /* ===== 统计面板 ===== */
+    async function toggleStats() {
+      const panel = document.getElementById('statsPanel');
+      const btn = document.getElementById('statsToggleBtn');
+
+      if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        btn.textContent = '查看数据';
+        return;
+      }
+
+      btn.textContent = '加载中...';
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/stats');
+        const data = await resp.json();
+
+        if (data.success) {
+          document.getElementById('statParses').textContent = data.parses.toLocaleString();
+          document.getElementById('statShortens').textContent = data.shortens.toLocaleString();
+          document.getElementById('statVisits').textContent = data.visits.toLocaleString();
+          panel.classList.add('open');
+          btn.textContent = '收起数据';
+        } else {
+          showToast('获取统计失败', 'error');
+          btn.textContent = '查看数据';
+        }
+      } catch {
+        showToast('获取统计失败', 'error');
+        btn.textContent = '查看数据';
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     /* ===== 初始化 ===== */
