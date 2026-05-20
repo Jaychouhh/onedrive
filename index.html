@@ -1031,10 +1031,6 @@
         <!-- 总数卡片 -->
         <div class="stats-grid">
           <div class="stat-item">
-            <div class="stat-value" id="statParses">—</div>
-            <div class="stat-label">解析次数</div>
-          </div>
-          <div class="stat-item">
             <div class="stat-value" id="statShortens">—</div>
             <div class="stat-label">生成短链</div>
           </div>
@@ -1052,7 +1048,6 @@
               <thead>
                 <tr>
                   <th>日期</th>
-                  <th>解析</th>
                   <th>短链</th>
                   <th>访问</th>
                 </tr>
@@ -1225,15 +1220,6 @@
       return { type: 'personal', url: direct };
     }
 
-    function trackDownload(url) {
-      // 不等待，后台记录下载统计
-      fetch('/api/stats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'download', url })
-      }).catch(() => {});
-    }
-
     /* ===== 剪贴板操作 ===== */
     async function readClipboard() {
       try {
@@ -1342,13 +1328,6 @@
         // 自动复制
         copyText(result.url);
 
-        // 统计：解析次数 +1（不等待），带上解析后的直链
-        fetch('/api/stats', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'parse', url: result.url })
-        }).catch(() => {});
-
         let metaHtml = '';
         if (result.type === 'sharepoint') {
           metaHtml = `<div class="result-meta sharepoint">
@@ -1378,7 +1357,7 @@
             <div class="result-url">${escapeHtml(result.url)}</div>
             <div class="result-actions">
               <button class="btn btn-success" onclick="copyText('${escapeHtml(result.url)}')">📋 复制链接</button>
-              <a href="${escapeHtml(result.url)}" download class="btn-secondary" style="flex:1;justify-content:center;" onclick="trackDownload('${escapeHtml(result.url)}')">⬇️ 下载文件</a>
+              <a href="${escapeHtml(result.url)}" download class="btn-secondary" style="flex:1;justify-content:center;">⬇️ 下载文件</a>
             </div>
             ${metaHtml}
 
@@ -1450,13 +1429,6 @@
           </div>
         `;
         showToast('短链生成成功');
-
-        // 上报统计
-        fetch('/api/stats', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'shorten', url: originalUrl })
-        }).catch(() => {});
 
       } catch (err) {
         showToast('短链生成失败：' + err.message, 'error');
@@ -1660,7 +1632,6 @@
 
         if (data.success) {
           // 总数
-          document.getElementById('statParses').textContent = data.totals.parses.toLocaleString();
           document.getElementById('statShortens').textContent = data.totals.shortens.toLocaleString();
           document.getElementById('statVisits').textContent = data.totals.visits.toLocaleString();
 
@@ -1672,7 +1643,6 @@
             return `
               <tr>
                 <td>${d.date} ${dayName}</td>
-                <td>${d.parses}</td>
                 <td>${d.shortens}</td>
                 <td>${d.visits}</td>
               </tr>
@@ -1686,10 +1656,7 @@
           } else {
             recentTbody.innerHTML = data.recent.slice(0, 20).map(r => {
               const time = new Date(r.time).toLocaleString('zh-CN');
-              const typeLabel =
-                r.type === 'parse' ? '🔍 解析' :
-                r.type === 'shorten' ? '⚡ 短链' :
-                r.type === 'download' ? '⬇️ 下载' : r.type;
+              const typeLabel = r.type === 'shorten' ? '⚡ 短链' : r.type;
               const ip = r.ip || '-';
               const rawUrl = r.url || '';
               return `
