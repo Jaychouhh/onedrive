@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneDrive 直链解析</title>
+  <style>
+    /* ===== 核心变量 ===== */
+    :root {
+      --primary: #0ea5e9;
+      --primary-light: #7dd3fc;
+      --primary-hover: #0284c7;
+      --success: #10b981;
+      --error: #f43f5e;
+      --warning: #f59e0b;
+      --text-main: #1e293b;
+      --text-secondary: #64748b;
+      --bg-gradient-start: #e0f2fe;
+      --bg-gradient-end: #fdf2f8;
+      --card-bg: rgba(255, 255, 255, 0.82);
+      --card-border: rgba(255, 255, 255, 0.6);
+      --card-shadow: 0 8px 32px rgba(14, 165, 233, 0.12);
+      --input-bg: rgba(255, 255, 255, 0.92);
+      --input-border: rgba(14, 165, 233, 0.25);
+      --history-bg: rgba(255, 255, 255, 0.65);
+      --highlight-pink: #f472b6;
+      --highlight-pink-soft: #fbcfe8;
+      --font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    /* ===== 主题1: 冰川清透 (默认) ===== */
+    [data-theme="glacier-clean"] {
+      --bg-gradient-start: #e0f2fe;
+      --bg-gradient-end: #fdf2f8;
+      --primary: #0ea5e9;
+      --primary-light: #7dd3fc;
+      --primary-hover: #0284c7;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(255, 255, 255, 0.65);
+      --card-shadow: 0 8px 32px rgba(14, 165, 233, 0.12);
+      --input-bg: rgba(255, 255, 255, 0.95);
+      --input-border: rgba(14, 165, 233, 0.3);
+      --history-bg: rgba(255, 255, 255, 0.7);
+      --text-main: #1e293b;
+      --text-secondary: #64748b;
+      --highlight-pink: #f472b6;
+      --highlight-pink-soft: #fbcfe8;
+    }
+
+    /* ===== 主题2: 极光冰川 ===== */
+    [data-theme="aurora"] {
+      --bg-gradient-start: #0c4a6e;
+      --bg-gradient-end: #701a75;
+      --primary: #38bdf8;
+      --primary-light: #7dd3fc;
+      --primary-hover: #0ea5e9;
+      --card-bg: rgba(15, 23, 42, 0.55);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      --input-bg: rgba(15, 23, 42, 0.45);
+      --input-border: rgba(56, 189, 248, 0.35);
+      --history-bg: rgba(15, 23, 42, 0.4);
+      --text-main: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --highlight-pink: #f9a8d4;
+      --highlight-pink-soft: rgba(249, 168, 212, 0.2);
+    }
+
+    /* ===== 主题3: 粉蓝梦境 ===== */
+    [data-theme="dreamy"] {
+      --bg-gradient-start: #fff0f5;
+      --bg-gradient-end: #dbeafe;
+      --primary: #0891b2;
+      --primary-light: #67e8f9;
+      --primary-hover: #0e7490;
+      --card-bg: rgba(255, 255, 255, 0.9);
+      --card-border: rgba(251, 207, 232, 0.6);
+      --card-shadow: 0 8px 32px rgba(244, 114, 182, 0.1);
+      --input-bg: rgba(255, 255, 255, 0.95);
+      --input-border: rgba(244, 114, 182, 0.25);
+      --history-bg: rgba(255, 255, 255, 0.75);
+      --text-main: #334155;
+      --text-secondary: #7c8797;
+      --highlight-pink: #ec4899;
+      --highlight-pink-soft: #fce7f3;
+    }
+
+    /* ===== 基础样式 ===== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-family);
+      line-height: 1.6;
+      color: var(--text-main);
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+      background-attachment: fixed;
+      padding: 1.5rem 1rem 4rem;
+      transition: background 0.6s ease;
+    }
+
+    /* ===== 主题切换器 ===== */
+    .theme-switcher {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 1000;
+      display: flex;
+      gap: 0.5rem;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 50px;
+      padding: 0.4rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .theme-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 0.4rem 0.9rem;
+      border-radius: 50px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .theme-btn:hover { color: var(--primary); background: var(--highlight-pink-soft); }
+    .theme-btn.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35); }
+    [data-theme="aurora"] .theme-btn.active { box-shadow: 0 2px 8px rgba(56, 189, 248, 0.35); }
+    [data-theme="dreamy"] .theme-btn.active { background: var(--highlight-pink); box-shadow: 0 2px 8px rgba(236, 72, 153, 0.3); }
+
+    /* ===== 容器 ===== */
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    /* ===== 头部 ===== */
+    .hero {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding-top: 2rem;
+    }
+
+    .hero-icon {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 1.25rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--highlight-pink) 100%);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      box-shadow: 0 8px 24px rgba(14, 165, 233, 0.25);
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--highlight-pink) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+
+    /* ===== 卡片 ===== */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(14, 165, 233, 0.15);
+    }
+
+    /* ===== 表单 ===== */
+    .form-group { margin-bottom: 1.25rem; }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      font-size: 0.9rem;
+      color: var(--text-main);
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      background: var(--input-bg);
+      border: 2px solid var(--input-border);
+      border-radius: 12px;
+      font-size: 1rem;
+      color: var(--text-main);
+      font-family: inherit;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+
+    input[type="text"]::placeholder { color: var(--text-secondary); opacity: 0.6; }
+    input[type="text"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+    }
+    [data-theme="dreamy"] input[type="text"]:focus { box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.1); }
+
+    .input-hint {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .input-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .input-actions .btn-secondary {
+      font-size: 0.8rem;
+      padding: 0.4rem 0.75rem;
+    }
+
+    /* ===== 按钮 ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      width: 100%;
+      padding: 0.9rem 1.5rem;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(14, 165, 233, 0.3);
+    }
+    [data-theme="dreamy"] .btn:hover { box-shadow: 0 6px 20px rgba(8, 145, 178, 0.3); }
+
+    .btn:active { transform: translateY(0); }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.6rem 1rem;
+      border: none;
+      border-radius: 8px;
+      background: var(--highlight-pink-soft);
+      color: var(--highlight-pink);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-secondary:hover { filter: brightness(0.95); }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+      color: white;
+    }
+
+    /* ===== 结果区域 ===== */
+    .result-card {
+      margin-top: 1.5rem;
+      padding: 1.5rem;
+      border-radius: 16px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      animation: slideUp 0.4s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .result-url {
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 10px;
+      padding: 1rem;
+      word-break: break-all;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      line-height: 1.5;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .result-actions .btn,
+    .result-actions .btn-secondary { width: auto; flex: 1; min-width: 100px; }
+
+    /* ===== 短链区域 ===== */
+    .shortlink-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--input-border);
+    }
+
+    .shortlink-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--highlight-pink);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .shortlink-box {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .shortlink-url {
+      flex: 1;
+      min-width: 200px;
+      background: var(--highlight-pink-soft);
+      border: 1px solid rgba(244, 114, 182, 0.3);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      word-break: break-all;
+    }
+
+    .shortlink-box .btn-secondary {
+      flex-shrink: 0;
+    }
+
+    .result-meta {
+      margin-top: 1rem;
+      padding: 0.875rem 1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+
+    .result-meta.dlink {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: #065f46;
+    }
+    [data-theme="aurora"] .result-meta.dlink { color: #6ee7b7; }
+
+    .result-meta.optimized {
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px solid rgba(14, 165, 233, 0.2);
+      color: #0c4a6e;
+    }
+    [data-theme="aurora"] .result-meta.optimized { color: #7dd3fc; }
+
+    .result-meta.warn {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      color: #92400e;
+    }
+    [data-theme="aurora"] .result-meta.warn { color: #fcd34d; }
+
+    .result-meta.sharepoint {
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px solid rgba(14, 165, 233, 0.2);
+      color: #0c4a6e;
+    }
+    [data-theme="aurora"] .result-meta.sharepoint { color: #7dd3fc; }
+
+    /* ===== 备注保存 ===== */
+    .save-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--input-border);
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .save-section input[type="text"] {
+      flex: 1;
+      min-width: 150px;
+      padding: 0.6rem 0.8rem;
+      font-size: 0.9rem;
+    }
+
+    .save-section .btn-secondary { flex-shrink: 0; }
+
+    /* ===== 历史记录 ===== */
+    .history-card { margin-top: 1.5rem; }
+
+    .history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .history-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .history-search {
+      position: relative;
+      flex: 1;
+      max-width: 280px;
+    }
+
+    .history-search input {
+      width: 100%;
+      padding: 0.6rem 0.8rem 0.6rem 2.2rem;
+      font-size: 0.9rem;
+    }
+
+    .history-search::before {
+      content: "🔍";
+      position: absolute;
+      left: 0.7rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.85rem;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .history-list {
+      max-height: 420px;
+      overflow-y: auto;
+      border-radius: 12px;
+      background: var(--history-bg);
+      border: 1px solid var(--card-border);
+      padding: 0.5rem;
+    }
+
+    .history-item {
+      padding: 1rem;
+      border-radius: 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      margin-bottom: 0.5rem;
+      transition: all 0.2s ease;
+      animation: slideUp 0.3s ease;
+    }
+
+    .history-item:last-child { margin-bottom: 0; }
+    .history-item:hover { transform: translateX(3px); border-color: var(--primary-light); }
+
+    .history-time {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.4rem;
+    }
+
+    .history-remark {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      display: inline-block;
+      transition: background 0.2s;
+    }
+
+    .history-remark:hover { background: var(--highlight-pink-soft); }
+
+    .history-remark-input {
+      font-weight: 600;
+      color: var(--primary);
+      padding: 0.25rem 0.5rem;
+      border: 2px solid var(--primary);
+      border-radius: 6px;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      background: var(--input-bg);
+      margin-bottom: 0.5rem;
+      width: 100%;
+    }
+
+    .history-url {
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      background: var(--input-bg);
+      padding: 0.5rem;
+      border-radius: 6px;
+      word-break: break-all;
+      margin-bottom: 0.75rem;
+      border: 1px solid var(--input-border);
+    }
+
+    .history-actions { display: flex; gap: 0.5rem; }
+
+    .history-actions .btn-secondary {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    .history-empty {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--text-secondary);
+    }
+
+    .history-empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5; }
+
+    /* ===== 提示卡片 ===== */
+    .notice-card {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.06) 0%, rgba(244, 114, 182, 0.06) 100%);
+      border: 1px solid var(--card-border);
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .notice-card strong { color: var(--primary); }
+    .notice-card ul { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+    .notice-card li { margin-bottom: 0.25rem; }
+
+    /* ===== Toast ===== */
+    .toast-container {
+      position: fixed;
+      top: 1.25rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 0.75rem 1.25rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: white;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s;
+      pointer-events: auto;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .toast.success { background: rgba(16, 185, 129, 0.9); }
+    .toast.error { background: rgba(244, 63, 94, 0.9); }
+    .toast.info { background: rgba(14, 165, 233, 0.9); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-10px); }
+    }
+
+    /* ===== 加载动画 ===== */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 640px) {
+      body { padding: 1rem 0.75rem 3rem; }
+      .hero { padding-top: 3.5rem; }
+      .hero h1 { font-size: 1.6rem; }
+      .card { padding: 1.25rem; }
+      .theme-switcher { top: 0.5rem; right: 0.5rem; }
+      .theme-btn { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+      .history-header { flex-direction: column; align-items: stretch; }
+      .history-search { max-width: none; }
+      .result-actions .btn,
+      .result-actions .btn-secondary { flex: 1 1 100%; }
+      .save-section { flex-direction: column; align-items: stretch; }
+    }
+
+    /* ===== 错误提示 ===== */
+    .error-card {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      border-radius: 14px;
+      background: rgba(244, 63, 94, 0.06);
+      border: 1px solid rgba(244, 63, 94, 0.2);
+      color: var(--error);
+      animation: slideUp 0.3s ease;
+    }
+
+    .error-card strong { display: block; margin-bottom: 0.25rem; }
+
+    /* ===== 短链提示 ===== */
+    .shortlink-tip {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      background: rgba(245, 158, 11, 0.06);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .shortlink-tip a { color: var(--primary); }
+  </style>
+</head>
+<body data-theme="glacier-clean">
+
+  <!-- 主题切换器 -->
+  <div class="theme-switcher">
+    <button class="theme-btn active" onclick="setTheme('glacier-clean')">冰川清透</button>
+    <button class="theme-btn" onclick="setTheme('aurora')">极光冰川</button>
+    <button class="theme-btn" onclick="setTheme('dreamy')">粉蓝梦境</button>
+  </div>
+
+  <div class="container">
+    <!-- 头部 -->
+    <div class="hero">
+      <div class="hero-icon">❄️</div>
+      <h1>OneDrive 直链解析</h1>
+      <p>支持个人版、海外企业版、世纪互联版</p>
+    </div>
+
+    <!-- 解析卡片 -->
+    <div class="card">
+      <div class="form-group">
+        <label for="shareUrl">分享链接</label>
+        <div class="input-wrap">
+          <input
+            type="text"
+            id="shareUrl"
+            placeholder="粘贴 OneDrive / SharePoint 分享链接..."
+            onkeydown="if(event.key==='Enter') parse()"
+            autocomplete="off"
+          />
+        </div>
+        <div class="input-actions">
+          <button class="btn-secondary" onclick="pasteFromClipboard()" title="自动读取剪贴板内容">
+            📋 粘贴链接
+          </button>
+          <button class="btn-secondary" onclick="clearInput()" title="清空输入框">
+            🗑️ 清空
+          </button>
+        </div>
+        <div class="input-hint">
+          <span>💡</span>
+          <span>支持 onedrive.live.com、1drv.ms、sharepoint.com、sharepoint.cn</span>
+        </div>
+        <div id="clipboardHint" style="display:none; margin-top:0.4rem; font-size:0.8rem; color:var(--success); cursor:pointer;"
+          onclick="pasteFromClipboard()">
+          🔍 检测到剪贴板中有分享链接，<strong style="cursor:pointer; text-decoration:underline;">点击粘贴</strong>
+        </div>
+      </div>
+
+      <button class="btn" id="parseBtn" onclick="parse()">
+        <span>解析直链</span>
+      </button>
+
+      <!-- 短链手动展开区（默认隐藏） -->
+      <div id="shortlinkArea" style="display:none;">
+        <div class="shortlink-tip">
+          <strong>⚠️ 浏览器限制</strong><br>
+          由于安全策略，无法自动展开 <code>1drv.ms</code> 短链。<br>
+          请<a href="#" id="shortlinkOpen" target="_blank">点击这里访问链接</a>，然后将地址栏中的完整长链接粘贴到上方输入框后再次解析。
+        </div>
+      </div>
+
+      <!-- 结果区 -->
+      <div id="resultArea"></div>
+    </div>
+
+    <!-- 历史记录 -->
+    <div class="card history-card">
+      <div class="history-header">
+        <div class="history-title">📋 解析历史</div>
+        <div class="history-search">
+          <input type="text" id="searchInput" placeholder="搜索备注名..." oninput="renderHistory()" />
+        </div>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="history-empty">
+          <div class="history-empty-icon">📝</div>
+          <div>暂无历史记录</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 使用说明 -->
+    <div class="notice-card">
+      <strong>使用说明</strong>
+      <ul>
+        <li>仅支持<strong>文件</strong>分享链接，文件夹链接无法生成直链</li>
+        <li>世纪互联和企业版直接生成 <code>/_layouts/52/download.aspx</code> 格式，无需登录</li>
+        <li>个人版优先使用 <code>dlink.host</code> 服务生成真正的无登录直链</li>
+        <li>解析成功后链接会自动复制到剪贴板</li>
+        <li>必须填写文件备注后才能保存到历史记录</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Toast 容器 -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    /* ===== 配置 ===== */
+    const STORAGE_KEY = 'onedrive-history-v2';
+    let historyData = [];
+
+    /* ===== 主题切换 ===== */
+    function setTheme(theme) {
+      document.body.setAttribute('data-theme', theme);
+      document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      localStorage.setItem('od-theme', theme);
+    }
+
+    (function initTheme() {
+      const saved = localStorage.getItem('od-theme') || 'glacier-clean';
+      document.body.setAttribute('data-theme', saved);
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes(saved));
+      });
+    })();
+
+    /* ===== OneDrive 解析核心逻辑 ===== */
+    function isSupportedHost(url) {
+      try {
+        const host = new URL(url).hostname.toLowerCase();
+        return ['1drv.ms', 'onedrive.live.com', 'sharepoint.com', 'my.sharepoint.com',
+                'sharepoint.cn', 'my.sharepoint.cn'].some(s => host.endsWith(s));
+      } catch { return false; }
+    }
+
+    function isFolderLink(url) {
+      try {
+        const path = new URL(url).pathname.toLowerCase();
+        return path.includes(':f:') || path.includes(':b:') || path.includes('forms/allitems.aspx');
+      } catch { return false; }
+    }
+
+    function convertSharePoint(url) {
+      const match = url.match(/\/:u:\/g\/personal\/([^/]+)\/([^/?#]+)/);
+      if (match) {
+        const domain = new URL(url).hostname;
+        return `https://${domain}/personal/${match[1]}/_layouts/52/download.aspx?share=${match[2]}`;
+      }
+      throw new Error('请使用标准的 OneDrive/SharePoint 分享链接。支持格式： https://domain/:u:/g/personal/用户名/分享token');
+    }
+
+    function convertPersonal(url) {
+      const urlObj = new URL(url);
+      const params = new URLSearchParams(urlObj.search);
+
+      if (params.has('redeem')) {
+        return `https://dlink.host/1drv/${params.get('redeem')}`;
+      }
+
+      if (params.has('resid') && params.has('authkey')) {
+        return `https://onedrive.live.com/download?resid=${params.get('resid')}&authkey=${params.get('authkey')}`;
+      }
+
+      params.set('download', '1');
+      urlObj.search = params.toString();
+      return urlObj.toString();
+    }
+
+    async function expandShortLink(url, timeout = 15000) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeout);
+        const resp = await fetch(url, {
+          method: 'HEAD',
+          redirect: 'follow',
+          signal: controller.signal,
+          mode: 'cors'
+        });
+        clearTimeout(timer);
+        if (resp.url && resp.url !== url) return resp.url;
+
+        // 如果 HEAD 拿不到，尝试 GET（流式，避免下载大文件）
+        const controller2 = new AbortController();
+        const timer2 = setTimeout(() => controller2.abort(), timeout);
+        const resp2 = await fetch(url, {
+          method: 'GET',
+          redirect: 'follow',
+          signal: controller2.signal,
+          mode: 'cors',
+          headers: { 'Range': 'bytes=0-0' }
+        });
+        clearTimeout(timer2);
+        return resp2.url || url;
+      } catch (e) {
+        // CORS 或网络错误
+        throw new Error('CORS');
+      }
+    }
+
+    async function parseLink(inputUrl) {
+      if (!/^https?:\/\//i.test(inputUrl)) {
+        throw new Error('请输入以 http:// 或 https:// 开头的分享链接');
+      }
+      if (!isSupportedHost(inputUrl)) {
+        throw new Error('不支持的链接域名：仅支持 OneDrive / SharePoint / 世纪互联分享链接');
+      }
+
+      if (isFolderLink(inputUrl)) {
+        throw new Error('检测到文件夹分享链接，目前仅支持文件链接');
+      }
+
+      const host = new URL(inputUrl).hostname.toLowerCase();
+
+      if (host.includes('sharepoint.com') || host.includes('sharepoint.cn') || host.includes('my.sharepoint')) {
+        return { type: 'sharepoint', url: convertSharePoint(inputUrl) };
+      }
+
+      // 个人版
+      let expanded = inputUrl;
+      if (host.endsWith('1drv.ms')) {
+        try {
+          expanded = await expandShortLink(inputUrl);
+        } catch (err) {
+          if (err.message === 'CORS') {
+            throw new Error('SHORTLINK_CORS');
+          }
+          throw new Error('无法展开短链：' + err.message);
+        }
+      }
+
+      const direct = convertPersonal(expanded);
+      if (direct.includes('dlink.host/1drv/')) {
+        return { type: 'dlink', url: direct };
+      } else if (direct.includes('onedrive.live.com/download?resid=')) {
+        return { type: 'optimized', url: direct };
+      } else if (direct.includes('download=1')) {
+        return { type: 'fallback', url: direct };
+      }
+      return { type: 'personal', url: direct };
+    }
+
+    /* ===== 剪贴板操作 ===== */
+    async function readClipboard() {
+      try {
+        if (!navigator.clipboard || !navigator.clipboard.readText) return null;
+        const text = await navigator.clipboard.readText();
+        return text?.trim() || null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function pasteFromClipboard() {
+      const text = await readClipboard();
+      if (!text) {
+        showToast('无法读取剪贴板，请手动粘贴', 'error');
+        return;
+      }
+      const input = document.getElementById('shareUrl');
+      input.value = text;
+      input.focus();
+      // 如果看起来像 OneDrive 链接，自动触发解析
+      if (isSupportedHost(text)) {
+        showToast('已从剪贴板粘贴链接');
+        parse();
+      } else {
+        showToast('已粘贴，请检查链接格式');
+      }
+      document.getElementById('clipboardHint').style.display = 'none';
+    }
+
+    function clearInput() {
+      const input = document.getElementById('shareUrl');
+      input.value = '';
+      input.focus();
+      document.getElementById('resultArea').innerHTML = '';
+      document.getElementById('shortlinkArea').style.display = 'none';
+      showToast('已清空');
+    }
+
+    async function autoDetectClipboard() {
+      const text = await readClipboard();
+      if (!text) return;
+      const hint = document.getElementById('clipboardHint');
+      if (isSupportedHost(text)) {
+        hint.style.display = 'block';
+      } else {
+        hint.style.display = 'none';
+      }
+    }
+
+    /* ===== UI 交互 ===== */
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('链接已复制到剪贴板');
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('链接已复制到剪贴板');
+      }
+    }
+
+    function setLoading(loading) {
+      const btn = document.getElementById('parseBtn');
+      if (loading) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span><span>解析中...</span>';
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = '<span>解析直链</span>';
+      }
+    }
+
+    async function parse() {
+      const input = document.getElementById('shareUrl');
+      const resultArea = document.getElementById('resultArea');
+      const shortlinkArea = document.getElementById('shortlinkArea');
+      const url = input.value.trim();
+
+      resultArea.innerHTML = '';
+      shortlinkArea.style.display = 'none';
+
+      if (!url) {
+        showToast('请填写分享链接', 'error');
+        input.focus();
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const result = await parseLink(url);
+
+        // 自动复制
+        copyText(result.url);
+
+        let metaHtml = '';
+        if (result.type === 'sharepoint') {
+          metaHtml = `<div class="result-meta sharepoint">
+            <strong>✨ 企业版/世纪互联直链</strong><br>
+            生成的是 <code>/_layouts/52/download.aspx</code> 格式链接，无需登录即可下载，支持断点续传。
+          </div>`;
+        } else if (result.type === 'dlink') {
+          metaHtml = `<div class="result-meta dlink">
+            <strong>🎉 真正的无登录直链</strong><br>
+            使用 dlink.host 服务生成，通过提取 redeem 参数实现。无需登录、支持直接下载、兼容性强。
+          </div>`;
+        } else if (result.type === 'optimized') {
+          metaHtml = `<div class="result-meta optimized">
+            <strong>✨ 优化直链</strong><br>
+            使用 resid + authkey 格式，无需登录即可下载。
+          </div>`;
+        } else {
+          metaHtml = `<div class="result-meta warn">
+            <strong>⚠️ 传统格式</strong><br>
+            生成的是传统格式直链，部分情况可能需要登录。建议检查原始链接是否为公开分享。
+          </div>`;
+        }
+
+        resultArea.innerHTML = `
+          <div class="result-card">
+            <div class="result-label">✅ 解析成功</div>
+            <div class="result-url">${escapeHtml(result.url)}</div>
+            <div class="result-actions">
+              <button class="btn btn-success" onclick="copyText('${escapeHtml(result.url)}')">📋 复制链接</button>
+              <a href="${escapeHtml(result.url)}" download class="btn-secondary" style="flex:1;justify-content:center;">⬇️ 下载文件</a>
+            </div>
+            ${metaHtml}
+
+            <!-- 短链生成 -->
+            <div class="shortlink-section" id="shortlinkSection">
+              <div class="shortlink-label">🔗 短链服务</div>
+              <button class="btn-secondary" onclick="generateShortLink()" id="shortenBtn">
+                ⚡ 生成短链
+              </button>
+              <div id="shortlinkResult" style="display:none; margin-top:0.5rem;"></div>
+            </div>
+
+            <div class="save-section">
+              <input type="text" id="remarkInput" placeholder="输入文件备注（必填）..." onkeydown="if(event.key==='Enter') saveCurrent()" />
+              <button class="btn-secondary" onclick="saveCurrent()">💾 保存到历史</button>
+            </div>
+          </div>
+        `;
+
+        // 存储当前结果供保存使用
+        window._currentResult = { url: result.url, original: url };
+
+      } catch (err) {
+        if (err.message === 'SHORTLINK_CORS') {
+          shortlinkArea.style.display = 'block';
+          document.getElementById('shortlinkOpen').href = url;
+          showToast('无法自动展开短链，请手动获取长链接', 'info');
+        } else {
+          resultArea.innerHTML = `
+            <div class="error-card">
+              <strong>❌ 解析失败</strong>
+              ${escapeHtml(err.message)}
+            </div>
+          `;
+          showToast('解析失败：' + err.message, 'error');
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    /* ===== 短链功能 ===== */
+    async function generateShortLink() {
+      if (!window._currentResult?.url) return;
+      const btn = document.getElementById('shortenBtn');
+      const resultDiv = document.getElementById('shortlinkResult');
+      const originalUrl = window._currentResult.url;
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> 生成中...';
+
+      try {
+        const resp = await fetch('/api/shorten', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: originalUrl })
+        });
+        const data = await resp.json();
+
+        if (!data.success) {
+          throw new Error(data.error || '生成失败');
+        }
+
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <div class="shortlink-box">
+            <div class="shortlink-url">${escapeHtml(data.shortUrl)}</div>
+            <button class="btn-secondary" onclick="copyText('${escapeHtml(data.shortUrl)}')">📋 复制</button>
+          </div>
+        `;
+        showToast('短链生成成功');
+
+      } catch (err) {
+        showToast('短链生成失败：' + err.message, 'error');
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '⚡ 生成短链';
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    /* ===== 历史记录 ===== */
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) historyData = JSON.parse(raw);
+      } catch { historyData = []; }
+    }
+
+    function saveHistory() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(historyData.slice(0, 100)));
+    }
+
+    function saveCurrent() {
+      const remarkInput = document.getElementById('remarkInput');
+      if (!remarkInput || !window._currentResult) return;
+      const remark = remarkInput.value.trim();
+      if (!remark) {
+        showToast('请先填写文件备注', 'error');
+        remarkInput.focus();
+        remarkInput.style.borderColor = 'var(--error)';
+        setTimeout(() => remarkInput.style.borderColor = '', 2000);
+        return;
+      }
+
+      const item = {
+        id: Date.now(),
+        url: window._currentResult.url,
+        originalUrl: window._currentResult.original,
+        remark,
+        timestamp: new Date().toLocaleString('zh-CN')
+      };
+
+      const idx = historyData.findIndex(h => h.url === item.url);
+      if (idx !== -1) historyData[idx] = item;
+      else historyData.unshift(item);
+
+      saveHistory();
+      renderHistory();
+      showToast('已保存到历史记录');
+      remarkInput.value = '';
+    }
+
+    function deleteHistoryItem(id) {
+      if (!confirm('确定要删除这条记录吗？')) return;
+      historyData = historyData.filter(h => h.id !== id);
+      saveHistory();
+      renderHistory();
+      showToast('记录已删除');
+    }
+
+    function editRemark(id) {
+      const span = document.getElementById(`remark-${id}`);
+      const input = document.getElementById(`input-${id}`);
+      if (!span || !input) return;
+      span.style.display = 'none';
+      input.style.display = 'block';
+      input.focus();
+      input.select();
+    }
+
+    function saveRemark(id) {
+      const input = document.getElementById(`input-${id}`);
+      if (!input) return;
+      const val = input.value.trim();
+      if (!val) {
+        showToast('备注不能为空', 'error');
+        input.focus();
+        return;
+      }
+      const item = historyData.find(h => h.id === id);
+      if (item) {
+        item.remark = val;
+        saveHistory();
+        renderHistory();
+        showToast('备注已更新');
+      }
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('historyList');
+      const term = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+      let data = historyData;
+      if (term) data = data.filter(h => h.remark.toLowerCase().includes(term));
+
+      if (data.length === 0) {
+        container.innerHTML = `
+          <div class="history-empty">
+            <div class="history-empty-icon">📝</div>
+            <div>${term ? '未找到匹配的记录' : '暂无历史记录'}</div>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = data.map(item => `
+        <div class="history-item">
+          <div class="history-time">${escapeHtml(item.timestamp)}</div>
+          <div>
+            <span class="history-remark" id="remark-${item.id}" onclick="editRemark(${item.id})" style="display:inline-block;">${highlight(escapeHtml(item.remark), term)}</span>
+            <input type="text" class="history-remark-input" id="input-${item.id}" value="${escapeHtml(item.remark)}" style="display:none;"
+              onblur="saveRemark(${item.id})"
+              onkeydown="if(event.key==='Enter') saveRemark(${item.id}); if(event.key==='Escape') renderHistory()" />
+          </div>
+          <div class="history-url">${escapeHtml(item.url)}</div>
+          <div class="history-actions">
+            <button class="btn-secondary" onclick="copyText('${escapeHtml(item.url)}')">📋 复制</button>
+            <a href="${escapeHtml(item.url)}" download class="btn-secondary">⬇️ 下载</a>
+            <button class="btn-secondary" style="background:rgba(244,63,94,0.1);color:var(--error);" onclick="deleteHistoryItem(${item.id})">🗑️ 删除</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function highlight(text, term) {
+      if (!term) return text;
+      const re = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return text.replace(re, '<mark style="background:#fde047;padding:1px 3px;border-radius:3px;color:#713f12;">$1</mark>');
+    }
+
+    /* ===== 初始化 ===== */
+    loadHistory();
+    renderHistory();
+
+    // 页面加载后自动聚焦输入框并检测剪贴板
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('shareUrl')?.focus();
+      // 延迟检测剪贴板，等页面完全渲染
+      setTimeout(autoDetectClipboard, 800);
+    });
+
+    // 页面重新获得焦点时（用户从其他应用切回来）检测剪贴板
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        setTimeout(autoDetectClipboard, 300);
+      }
+    });
+  </script>
+</body>
+</html>
