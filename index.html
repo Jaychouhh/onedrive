@@ -801,6 +801,26 @@
     .daily-table tbody tr:last-child td { border-bottom: none; }
     .daily-table tbody tr:hover td { background: rgba(14, 165, 233, 0.04); }
 
+    .log-url {
+      max-width: 180px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      color: var(--primary);
+      transition: all 0.2s ease;
+    }
+
+    .log-url:hover { text-decoration: underline; }
+
+    .log-url.expanded {
+      white-space: normal;
+      word-break: break-all;
+      max-width: none;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
     /* ===== 管理员入口 ===== */
     .admin-trigger {
       position: fixed;
@@ -1205,6 +1225,15 @@
       return { type: 'personal', url: direct };
     }
 
+    function trackDownload(url) {
+      // 不等待，后台记录下载统计
+      fetch('/api/stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'download', url })
+      }).catch(() => {});
+    }
+
     /* ===== 剪贴板操作 ===== */
     async function readClipboard() {
       try {
@@ -1313,11 +1342,11 @@
         // 自动复制
         copyText(result.url);
 
-        // 统计：解析次数 +1（不等待）
+        // 统计：解析次数 +1（不等待），带上解析后的直链
         fetch('/api/stats', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'parse' })
+          body: JSON.stringify({ type: 'parse', url: result.url })
         }).catch(() => {});
 
         let metaHtml = '';
@@ -1349,7 +1378,7 @@
             <div class="result-url">${escapeHtml(result.url)}</div>
             <div class="result-actions">
               <button class="btn btn-success" onclick="copyText('${escapeHtml(result.url)}')">📋 复制链接</button>
-              <a href="${escapeHtml(result.url)}" download class="btn-secondary" style="flex:1;justify-content:center;">⬇️ 下载文件</a>
+              <a href="${escapeHtml(result.url)}" download class="btn-secondary" style="flex:1;justify-content:center;" onclick="trackDownload('${escapeHtml(result.url)}')">⬇️ 下载文件</a>
             </div>
             ${metaHtml}
 
@@ -1657,14 +1686,19 @@
           } else {
             recentTbody.innerHTML = data.recent.slice(0, 20).map(r => {
               const time = new Date(r.time).toLocaleString('zh-CN');
-              const typeLabel = r.type === 'parse' ? '🔍 解析' : r.type === 'shorten' ? '⚡ 短链' : r.type;
-              const url = r.url ? escapeHtml(r.url.substring(0, 50) + (r.url.length > 50 ? '...' : '')) : '-';
+              const typeLabel =
+                r.type === 'parse' ? '🔍 解析' :
+                r.type === 'shorten' ? '⚡ 短链' :
+                r.type === 'download' ? '⬇️ 下载' : r.type;
               const ip = r.ip || '-';
+              const rawUrl = r.url || '';
               return `
                 <tr>
                   <td>${time}</td>
                   <td>${typeLabel}</td>
-                  <td title="${escapeHtml(r.url || '')}">${url}</td>
+                  <td class="log-url" onclick="this.classList.toggle('expanded')"
+                    title="${escapeHtml(rawUrl)}"
+                  >${rawUrl ? escapeHtml(rawUrl) : '-'}</td>
                   <td>${ip}</td>
                 </tr>
               `;

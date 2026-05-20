@@ -17,15 +17,18 @@ function fmtDate(d) {
 async function incrementStat(env, type, detail) {
   const today = fmtDate(new Date());
 
-  // 1. 更新总数
-  const totalKey = `stats:${type}`;
-  const current = parseInt(await env.SHORT_URLS.get(totalKey) || '0');
-  await env.SHORT_URLS.put(totalKey, String(current + 1));
+  // 解析、短链、访问需要更新总数和按天统计；下载只记日志
+  if (type !== 'download') {
+    // 1. 更新总数
+    const totalKey = `stats:${type}`;
+    const current = parseInt(await env.SHORT_URLS.get(totalKey) || '0');
+    await env.SHORT_URLS.put(totalKey, String(current + 1));
 
-  // 2. 更新按天统计
-  const dailyKey = `daily:${today}:${type}`;
-  const dailyCurrent = parseInt(await env.SHORT_URLS.get(dailyKey) || '0');
-  await env.SHORT_URLS.put(dailyKey, String(dailyCurrent + 1));
+    // 2. 更新按天统计
+    const dailyKey = `daily:${today}:${type}`;
+    const dailyCurrent = parseInt(await env.SHORT_URLS.get(dailyKey) || '0');
+    await env.SHORT_URLS.put(dailyKey, String(dailyCurrent + 1));
+  }
 
   // 3. 添加操作日志（访问太频繁，不记日志）
   if (type !== 'visit') {
@@ -113,7 +116,7 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json();
-    const validTypes = ['parse', 'shorten', 'visit'];
+    const validTypes = ['parse', 'shorten', 'visit', 'download'];
 
     if (!validTypes.includes(body.type)) {
       return new Response(
