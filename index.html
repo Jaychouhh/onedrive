@@ -757,6 +757,50 @@
 
     .stats-panel.open { display: block; }
 
+    /* ===== 按天统计表格 ===== */
+    .daily-section { }
+
+    .daily-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 0.5rem;
+    }
+
+    .daily-table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: var(--input-bg);
+    }
+
+    .daily-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .daily-table th,
+    .daily-table td {
+      padding: 0.6rem 0.75rem;
+      text-align: center;
+      border-bottom: 1px solid var(--input-border);
+    }
+
+    .daily-table th {
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: rgba(14, 165, 233, 0.05);
+      white-space: nowrap;
+    }
+
+    .daily-table td {
+      color: var(--text-main);
+    }
+
+    .daily-table tbody tr:last-child td { border-bottom: none; }
+    .daily-table tbody tr:hover td { background: rgba(14, 165, 233, 0.04); }
+
     /* ===== 管理员入口 ===== */
     .admin-trigger {
       position: fixed;
@@ -964,6 +1008,7 @@
         <button class="btn-secondary" id="statsToggleBtn" onclick="toggleStats()">查看数据</button>
       </div>
       <div class="stats-panel" id="statsPanel">
+        <!-- 总数卡片 -->
         <div class="stats-grid">
           <div class="stat-item">
             <div class="stat-value" id="statParses">—</div>
@@ -978,8 +1023,44 @@
             <div class="stat-label">短链访问</div>
           </div>
         </div>
-        <div class="input-hint" style="justify-content:center;">
-          <span>📈 数据来自服务器实时统计</span>
+
+        <!-- 最近7天 -->
+        <div class="daily-section" style="margin-top:1.25rem;">
+          <div class="daily-title">📅 最近7天</div>
+          <div class="daily-table-wrap">
+            <table class="daily-table" id="dailyTable">
+              <thead>
+                <tr>
+                  <th>日期</th>
+                  <th>解析</th>
+                  <th>短链</th>
+                  <th>访问</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 最近操作日志 -->
+        <div class="daily-section" style="margin-top:1.25rem;">
+          <div class="daily-title">📝 最近操作</div>
+          <div class="daily-table-wrap">
+            <table class="daily-table" id="recentTable">
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>类型</th>
+                  <th>链接</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="input-hint" style="justify-content:center; margin-top:0.5rem;">
+            <span>最多保留最近50条记录</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1341,6 +1422,13 @@
         `;
         showToast('短链生成成功');
 
+        // 上报统计
+        fetch('/api/stats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'shorten', url: originalUrl })
+        }).catch(() => {});
+
       } catch (err) {
         showToast('短链生成失败：' + err.message, 'error');
         console.error(err);
@@ -1542,9 +1630,47 @@
         const data = await resp.json();
 
         if (data.success) {
-          document.getElementById('statParses').textContent = data.parses.toLocaleString();
-          document.getElementById('statShortens').textContent = data.shortens.toLocaleString();
-          document.getElementById('statVisits').textContent = data.visits.toLocaleString();
+          // 总数
+          document.getElementById('statParses').textContent = data.totals.parses.toLocaleString();
+          document.getElementById('statShortens').textContent = data.totals.shortens.toLocaleString();
+          document.getElementById('statVisits').textContent = data.totals.visits.toLocaleString();
+
+          // 按天表格
+          const dailyTbody = document.querySelector('#dailyTable tbody');
+          dailyTbody.innerHTML = data.daily.map(d => {
+            const date = new Date(d.date + 'T00:00:00');
+            const dayName = ['周日','周一','周二','周三','周四','周五','周六'][date.getDay()];
+            return `
+              <tr>
+                <td>${d.date} ${dayName}</td>
+                <td>${d.parses}</td>
+                <td>${d.shortens}</td>
+                <td>${d.visits}</td>
+              </tr>
+            `;
+          }).join('');
+
+          // 最近日志
+          const recentTbody = document.querySelector('#recentTable tbody');
+          if (data.recent.length === 0) {
+            recentTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:1rem;">暂无记录</td></tr>';
+          } else {
+            recentTbody.innerHTML = data.recent.slice(0, 20).map(r => {
+              const time = new Date(r.time).toLocaleString('zh-CN');
+              const typeLabel = r.type === 'parse' ? '🔍 解析' : r.type === 'shorten' ? '⚡ 短链' : r.type;
+              const url = r.url ? escapeHtml(r.url.substring(0, 50) + (r.url.length > 50 ? '...' : '')) : '-';
+              const ip = r.ip || '-';
+              return `
+                <tr>
+                  <td>${time}</td>
+                  <td>${typeLabel}</td>
+                  <td title="${escapeHtml(r.url || '')}">${url}</td>
+                  <td>${ip}</td>
+                </tr>
+              `;
+            }).join('');
+          }
+
           panel.classList.add('open');
           btn.textContent = '收起数据';
         } else {

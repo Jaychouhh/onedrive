@@ -26,9 +26,12 @@ export async function onRequestGet(context) {
       return new Response('短链已过期', { status: 410 });
     }
 
-    // 统计：短链访问次数 +1
+    // 统计：短链访问次数 +1（总数 + 按天）
     const currentVisits = parseInt(await env.SHORT_URLS.get('stats:shortlink_visits') || '0');
     await env.SHORT_URLS.put('stats:shortlink_visits', String(currentVisits + 1));
+    const today = new Date().toISOString().slice(0, 10);
+    const dailyVisits = parseInt(await env.SHORT_URLS.get(`daily:${today}:visits`) || '0');
+    await env.SHORT_URLS.put(`daily:${today}:visits`, String(dailyVisits + 1));
 
     // 302 跳转到真实下载地址
     return Response.redirect(url, 302);
